@@ -1,0 +1,300 @@
+#Bilal Aamir
+#Umair Aamir 
+
+#installing required modules
+import pygame
+import sys
+import time
+from pygame.locals import *
+import random
+
+pygame.init()
+
+FPS = 30
+f_p_s =pygame.time.Clock()
+green= (0, 255, 0)
+black =(0, 0, 0)
+window_size = pygame.display.set_mode((700, 700))
+window_size.fill(green)
+pygame.display.set_caption("STARWARS")
+font =pygame.font.SysFont("Times New Roman", 30)
+sp_inc = 6  
+
+score =0
+
+class Asteroid(pygame.sprite.Sprite):
+    def __init__(self, asteroid_group, sp_inc):
+        super().__init__()
+        self.ast_e =pygame.image.load("Asteroid.png")
+        self.rect= self.ast_e.get_rect(center=(random.randint(40, 660), random.randint(-70, 0)))
+        self.asteroid_group= asteroid_group
+        self.speed= sp_inc
+
+    def asteriod_move(self, score):
+        self.rect.move_ip(0, self.speed)
+        if self.rect.top > 700:
+            self.reset_asteroid()
+            score +=1
+            if score>20:
+                self.speed+=1  
+        return score
+
+    def reset_asteroid(self):
+        self.rect.center = (random.randint(40,660), random.randint(-70,0))
+        self.speed=sp_inc
+
+    def draw_asteroid(self,surface):
+        surface.blit(self.ast_e,self.rect)
+
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self,start_x, controls,sp_inc):
+        super().__init__()
+        self.spaceship =pygame.image.load("player.png")
+        self.rect=self.spaceship.get_rect(center=(start_x, 650))
+        self.controls=controls
+        self.speed=sp_inc
+
+    def draw_player(self, surface):
+        surface.blit(self.spaceship, self.rect)
+
+    def update(self):
+        press_key=pygame.key.get_pressed()
+        if self.rect.left> 0:
+            if press_key[self.controls[0]]:
+                self.rect.move_ip(-5, 0)
+        if self.rect.right <700:
+            if press_key[self.controls[1]]:
+                self.rect.move_ip(5, 0)
+
+class Background:
+    def __init__(self):
+        self.background=pygame.image.load("bg.png")
+        self.bgr =self.background.get_rect()
+        self.bg_x =0
+        self.bg_y=0
+        self.bg_y1=-self.bgr.height
+        self.bg_x1=0
+        self.speed_bg=3
+
+    def update_speed(self):
+        self.bg_y+=self.speed_bg
+        self.bg_y1+=self.speed_bg
+        if self.bg_y>self.bgr.height:
+            self.bg_y= -self.bgr.height
+        if self.bg_y1> self.bgr.height:
+            self.bg_y1= -self.bgr.height
+
+    def render(self):
+        window_size.blit(self.background,(self.bg_x, self.bg_y))
+        window_size.blit(self.background,(self.bg_x1,self.bg_y1))
+
+class MenuScreen:
+    def __init__(self):
+        self.font=pygame.font.SysFont("Times New Roman", 40)
+        self.menu_options = ["1 Player", "2 Players", "Quit"]
+        self.selected_option=None
+        self.menu_active =True
+
+    def display_menu(self):
+        menu_surface =pygame.Surface((700, 500))
+        menu_surface.fill(black)
+
+        for i, option in enumerate(self.menu_options):
+            text=self.font.render(option, True, green)
+            text_rect=text.get_rect(center=(350, 200 + i * 100))
+            menu_surface.blit(text, text_rect)
+
+        window_size.blit(menu_surface,(0, 0))
+
+    def handle_menu_input(self):
+        for event in pygame.event.get():
+            if event.type ==QUIT:
+                quit()
+            elif event.type==pygame.MOUSEBUTTONDOWN:
+                mouse_pos=pygame.mouse.get_pos()
+                for i, option in enumerate(self.menu_options):
+                    text_rect =self.font.render(option, True, green).get_rect(center=(350, 200 +i * 100))
+                    if text_rect.collidepoint(mouse_pos):
+                        if option=="Quit":
+                            quit()
+                         
+                        else:
+                            self.selected_option =i+1
+                            self.menu_active=False
+                            
+
+class SinglePlayerGame:
+    def __init__(self):
+        self.score = 0
+        self.asteroid_group =pygame.sprite.Group()
+        self.asteroid_group.add(Asteroid(self.asteroid_group,sp_inc))
+        self.asteroid_group.add(Asteroid(self.asteroid_group, sp_inc))
+        self.asteroid_group.add(Asteroid(self.asteroid_group,sp_inc))
+        self.player =Player(250,[K_LEFT, K_RIGHT],sp_inc)
+        self.background =Background()
+
+    def wait_for_input(self):
+        waiting=True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type ==QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type ==KEYDOWN or event.type== MOUSEBUTTONDOWN:
+                    waiting =False
+
+    def run_game(self):
+        self.wait_for_input()  # Wait for the player input before starting the game
+
+        while True:
+            for event in pygame.event.get():
+                if event.type==QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            self.score_render=font.render("Score: " +str(self.score),True,green)
+            self.background.update_speed()
+            self.background.render()
+            window_size.blit(self.score_render,(0, 0))
+
+            if pygame.sprite.spritecollideany(self.player,self.asteroid_group):
+                self.game_over()
+                return
+
+            for asteroid in self.asteroid_group.sprites():
+                self.score =asteroid.asteriod_move(self.score)
+                asteroid.draw_asteroid(window_size)
+
+            self.player.update()
+            self.player.draw_player(window_size)
+
+            pygame.display.update()
+            f_p_s.tick(FPS)
+
+    def game_over(self):
+        window_size.fill(black)
+        game_over_text= font.render("GAME OVER", True, green)
+        window_size.blit(game_over_text, (200, 250))
+
+        player_score_text =font.render("Player Score: " + str(self.score), True, green)
+        window_size.blit(player_score_text, (250, 300)) 
+
+        pygame.display.update()
+        time.sleep(3)
+
+class TwoPlayerGame:
+    def __init__(self):
+        self.score_player1 =0
+        self.score_player2= 0
+        self.sp_inc_players= 4
+        self.asteroid_group= pygame.sprite.Group()
+        self.asteroid_group.add(Asteroid(self.asteroid_group,self.sp_inc_players))
+        self.asteroid_group.add(Asteroid(self.asteroid_group, self.sp_inc_players))
+        # Spawn two asteroids for player 2
+        self.asteroid_group.add(Asteroid(self.asteroid_group,self.sp_inc_players))
+        
+    
+        self.player1 = Player(100,[K_a, K_d],self.sp_inc_players)
+        self.player2 = Player(400, [K_LEFT, K_RIGHT],self.sp_inc_players)
+        
+        self.background =Background()
+
+    def wait_for_input(self):
+        waiting =True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type==QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == KEYDOWN or event.type == MOUSEBUTTONDOWN:
+                    waiting = False
+
+    def run_game(self):
+        self.wait_for_input()  
+
+        while True:
+            for event in pygame.event.get():
+                if event.type ==QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            self.score_render_player1=font.render("Player 1 Score: " + str(self.score_player1), True, green)
+            self.score_render_player2 =font.render("Player 2 Score: " + str(self.score_player2), True, green)
+            self.background.update_speed()
+            self.background.render()
+
+            window_size.blit(self.score_render_player1, (10, 10))
+            window_size.blit(self.score_render_player2, (370, 10))
+            collision_player1 =pygame.sprite.spritecollideany(self.player1, self.asteroid_group)
+            collision_player2= pygame.sprite.spritecollideany(self.player2, self.asteroid_group)
+            if collision_player1 and collision_player2:
+                self.game_over(True,True)
+                return
+            elif collision_player1:
+                self.game_over(True, False)
+                return
+            elif collision_player2:
+                self.game_over(False,True)
+                return
+
+            for asteroid in self.asteroid_group.sprites():
+                self.score_player1 =asteroid.asteriod_move(self.score_player1)
+                self.score_player2 =asteroid.asteriod_move(self.score_player2)
+                asteroid.draw_asteroid(window_size)
+
+            self.player1.update()
+            self.player1.draw_player(window_size)
+            self.player2.update()
+            self.player2.draw_player(window_size)
+
+            pygame.draw.line(window_size, green, (350, 0), (350, 700), 2)
+            pygame.display.update()
+            f_p_s.tick(FPS)
+
+    def game_over(self, player1_collided, player2_collided):
+        window_size.fill(black)
+
+        if player1_collided:
+            game_over_text1 =font.render("Player 1 GAME OVER", True, green)
+        else:
+            game_over_text1= font.render("Player 1 Score: " + str(self.score_player1), True, green)
+
+        if player2_collided:
+            game_over_text2 =font.render("Player 2 GAME OVER", True, green)
+        else:
+            game_over_text2 = font.render("Player 2 Score: " + str(self.score_player2), True, green)
+
+        window_size.blit(game_over_text1,(100, 200))
+        window_size.blit(game_over_text2, (100, 300))
+
+        
+        player1_score_text = font.render("Player 1 Score: " + str(self.score_player1), True, green)
+        window_size.blit(player1_score_text, (100, 400))
+
+        pygame.display.update()  
+
+        # Wait for 3 seconds
+        pygame.time.delay(3000)
+
+        pygame.event.clear()
+
+menu = MenuScreen()
+
+# Display the menu before waiting for input
+menu.display_menu()
+pygame.display.update()
+
+while menu.menu_active:
+    menu.handle_menu_input()
+
+if menu.selected_option == 1:
+    single_player_game = SinglePlayerGame()
+    single_player_game.run_game()
+elif menu.selected_option == 2:
+    two_player_game = TwoPlayerGame()
+    two_player_game.run_game()
+
+pygame.quit()
+sys.exit()
+
